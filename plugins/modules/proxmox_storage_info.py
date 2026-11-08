@@ -112,17 +112,26 @@ def module_options():
 
 
 class ProxmoxStorageInfoAnsible(ProxmoxAnsible):
-    def get_storage(self, storage):
-        try:
-            storage = self.proxmox_api.storage.get(storage)
-        except Exception:
-            self.module.fail_json(msg=f"Storage '{storage}' does not exist")
-        return ProxmoxStorage(storage)
+    def get_storages_info(self, storage_name=None, storage_type=None):
+        """
+        Retrieve storage information, either a single one by name
+        or all of them filtered by type.
 
-    def get_storages(self, storagetype=None):
-        storages = self.proxmox_api.storage.get(type=storagetype)
-        storages = [ProxmoxStorage(storage) for storage in storages]
-        return storages
+        Args:
+            storage_name(str): Name of the storage to retrieve. Takes precedence over storage_type.
+            storage_type(str): Type of storages to filter to.
+
+        Returns:
+            list[dict]: List of normalized storage configurations.
+        """
+        try:
+            if storage_name:
+                storage_configs = [self.proxmox_api.storage.get(storage_name)]
+            else:
+                storage_configs = self.proxmox_api.storage.get(type=storage_type)
+        except Exception as e:
+            self.module.fail_json(msg=f"Unable to retrieve storage information: {e}")
+        return [ProxmoxStorage(storage_config).storage for storage_config in storage_configs]
 
 
 class ProxmoxStorage:
@@ -149,15 +158,10 @@ def main():
     proxmox = ProxmoxStorageInfoAnsible(module)
 
     result = dict(changed=False)
-
-    storage = module.params["storage"]
-    storagetype = module.params["type"]
-
-    if storage:
-        storages = [proxmox.get_storage(storage)]
-    else:
-        storages = proxmox.get_storages(storagetype)
-    result["proxmox_storages"] = [storage.storage for storage in storages]
+    result["proxmox_storages"] = proxmox.get_storages_info(
+        storage_name=module.params["storage"],
+        storage_type=module.params["type"],
+    )
 
     module.exit_json(**result)
 
