@@ -126,12 +126,12 @@ class ProxmoxStorageInfoAnsible(ProxmoxAnsible):
         """
         try:
             if storage_name:
-                storage_configs = [self.proxmox_api.storage.get(storage_name)]
+                storage_infos = [self.proxmox_api.storage.get(storage_name)]
             else:
-                storage_configs = self.proxmox_api.storage.get(type=storage_type)
+                storage_infos = self.proxmox_api.storage.get(type=storage_type)
         except Exception as e:
             self.module.fail_json(msg=f"Unable to retrieve storage information: {e}")
-        return [ProxmoxStorage(storage_config).storage for storage_config in storage_configs]
+        return [ProxmoxStorage(storage_info) for storage_info in storage_infos]
 
 
 class ProxmoxStorage:
