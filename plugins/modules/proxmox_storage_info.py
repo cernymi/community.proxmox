@@ -122,16 +122,16 @@ class ProxmoxStorageInfoAnsible(ProxmoxAnsible):
             storage_type(str): Type of storages to filter to.
 
         Returns:
-            list[dict]: List of normalized storage configurations.
+            list[dict]: List of normalized storage informations.
         """
         try:
             if storage_name:
-                storage_infos = [self.proxmox_api.storage.get(storage_name)]
+                _storage_infos = [self.proxmox_api.storage.get(storage_name)]
             else:
-                storage_infos = self.proxmox_api.storage.get(type=storage_type)
+                _storage_infos = self.proxmox_api.storage.get(type=storage_type)
         except Exception as e:
             self.module.fail_json(msg=f"Unable to retrieve storage information: {e}")
-        return [ProxmoxStorage(storage_info) for storage_info in storage_infos]
+        return [ProxmoxStorage(storage_info).storage for storage_info in _storage_infos]
 
 
 class ProxmoxStorage:
