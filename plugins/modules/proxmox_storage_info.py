@@ -112,6 +112,32 @@ def module_options():
 
 
 class ProxmoxStorageInfoAnsible(ProxmoxAnsible):
+    @staticmethod
+    def normalize_storage_info(storage_info: dict) -> dict:
+        """
+        Convert proxmox representation of lists, dicts and boolean for easier manipulation
+        within ansible.
+
+        Args:
+            storage_info(dict): Storage configuration as returned by the Proxmox API.
+
+        Returns:
+            dict: The same storage configuration, modified in place.
+        """
+        if "shared" in storage_info:
+            storage_info["shared"] = proxmox_to_ansible_bool(storage_info["shared"])
+        if "content" in storage_info:
+            storage_info["content"] = storage_info["content"].split(",")
+        if "nodes" in storage_info:
+            storage_info["nodes"] = storage_info["nodes"].split(",")
+        if "prune-backups" in storage_info:
+            prune_options = storage_info["prune-backups"].split(",")
+            storage_info["prune-backups"] = {}
+            for prune_option in prune_options:
+                k, v = prune_option.split("=")
+                storage_info["prune-backups"][k] = v
+        return storage_info
+
     def get_storages_info(self, storage_name=None, storage_type=None):
         """
         Retrieve storage information, either a single one by name
@@ -131,26 +157,9 @@ class ProxmoxStorageInfoAnsible(ProxmoxAnsible):
                 _storage_infos = self.proxmox_api.storage.get(type=storage_type)
         except Exception as e:
             self.module.fail_json(msg=f"Unable to retrieve storage information: {e}")
-        return [ProxmoxStorage(storage_info).storage for storage_info in _storage_infos]
-
-
-class ProxmoxStorage:
-    def __init__(self, storage):
-        self.storage = storage
-        # Convert proxmox representation of lists, dicts and boolean for easier
-        # manipulation within ansible.
-        if "shared" in self.storage:
-            self.storage["shared"] = proxmox_to_ansible_bool(self.storage["shared"])
-        if "content" in self.storage:
-            self.storage["content"] = self.storage["content"].split(",")
-        if "nodes" in self.storage:
-            self.storage["nodes"] = self.storage["nodes"].split(",")
-        if "prune-backups" in storage:
-            options = storage["prune-backups"].split(",")
-            self.storage["prune-backups"] = dict()
-            for option in options:
-                k, v = option.split("=")
-                self.storage["prune-backups"][k] = v
+        return [
+            self.normalize_storage_info(storage_info) for storage_info in _storage_infos
+        ]
 
 
 def main():
